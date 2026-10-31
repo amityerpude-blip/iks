@@ -354,9 +354,12 @@ def render_individual_plan():
                 saved_plans.loc[saved_plans["plan_id"].astype(str) == selected_id, "review_status"] = review_status
                 saved_plans.to_csv(SUPPORT_FILE, index=False, encoding="utf-8-sig")
                 st.success("Plan review status updated.")
-    if st.button("Open IKS intervention & session log", type="primary", use_container_width=True):
-        st.session_state["page_nav"] = "IKS intervention & session log"
-        st.rerun()
+    st.button(
+        "Open IKS intervention & session log",
+        type="primary",
+        use_container_width=True,
+        on_click=lambda: st.session_state.update({"page_nav": "IKS intervention & session log"}),
+    )
 
     st.divider()
     st.subheader("How the plan should be reviewed")
@@ -443,9 +446,11 @@ def render_intervention():
         if "plan_id" in logs.columns:
             linked_logs = logs[logs["plan_id"].fillna("").astype(str).str.strip() != ""]
             st.caption(f"{len(linked_logs)} session(s) are linked to individual support plans.")
-    if st.button("Open Individual IKS support plan", use_container_width=True):
-        st.session_state["page_nav"] = "Individual IKS support plan"
-        st.rerun()
+    st.button(
+        "Open Individual IKS support plan",
+        use_container_width=True,
+        on_click=lambda: st.session_state.update({"page_nav": "Individual IKS support plan"}),
+    )
 
 
 def render_post_assessment():
