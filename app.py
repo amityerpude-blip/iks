@@ -1,0 +1,418 @@
+"""
+IKS School Wellness & Action Research Tool
+A school-based reflection and evaluation tool. It is not a diagnostic or treatment tool.
+Run: streamlit run app.py
+"""
+from __future__ import annotations
+
+import io
+import json
+import uuid
+from datetime import date, datetime
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import streamlit as st
+
+APP_DIR = Path(__file__).resolve().parent
+DATA_DIR = APP_DIR / "data"
+DATA_DIR.mkdir(exist_ok=True)
+ASSESSMENTS_FILE = DATA_DIR / "assessments.csv"
+PRACTICE_FILE = DATA_DIR / "practice_log.csv"
+
+st.set_page_config(
+    page_title="IKS School Wellness Project",
+    page_icon="🪷",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ----------------------------- Project content -----------------------------
+LIKERT = {
+    "Never": 1,
+    "Rarely": 2,
+    "Sometimes": 3,
+    "Often": 4,
+    "Almost always": 5,
+}
+FREQUENCY = list(LIKERT.keys())
+CORE_ITEMS = {
+    "stress": "I feel stressed by studies, schoolwork or expectations.",
+    "calm": "I am able to remain calm when I face a difficult situation.",
+    "concentration": "I can concentrate on my studies or the task in front of me.",
+    "worry": "I worry so much that it affects my daily activities.",
+    "sleep": "I follow a regular sleep and daily routine.",
+    "confidence": "I feel confident about handling everyday challenges.",
+    "sharing": "I can talk to a trusted person when something is troubling me.",
+    "positivity": "I can notice positive things in my day.",
+}
+# Higher scores are not uniformly better. Reverse-score stress and worry for
+# the overall positive-wellbeing index; display individual items transparently.
+REVERSE_ITEMS = {"stress", "worry"}
+PRACTICES = [
+    "Yoga / gentle stretching (as appropriate)",
+    "Pranayama / mindful breathing",
+    "Meditation / Dhyana",
+    "Svadhyaya / reflective reading or journaling",
+    "Karma Yoga / mindful, sincere action",
+    "Dinacharya / balanced daily routine",
+    "Seva / helpfulness and service",
+]
+ISSUES = [
+    "Academic pressure or examination stress",
+    "Difficulty concentrating",
+    "Worry or overthinking",
+    "Sleep or daily-routine difficulties",
+    "Low confidence",
+    "Difficulty expressing feelings",
+    "Peer or friendship concerns",
+    "Family or personal responsibilities",
+    "Managing anger or frustration",
+    "Other / prefer not to say",
+]
+
+def read_csv(path: Path) -> pd.DataFrame:
+    if path.exists() and path.stat().st_size:
+        try:
+            return pd.read_csv(path, dtype={"student_code": str})
+        except (pd.errors.EmptyDataError, pd.errors.ParserError, UnicodeDecodeError):
+            return pd.DataFrame()
+    return pd.DataFrame()
+
+
+def append_record(path: Path, record: dict) -> None:
+    frame = read_csv(path)
+    frame = pd.concat([frame, pd.DataFrame([record])], ignore_index=True)
+    frame.to_csv(path, index=False, encoding="utf-8-sig")
+
+
+def save_assessment(record: dict) -> None:
+    append_record(ASSESSMENTS_FILE, record)
+
+
+def header():
+    st.title("🪷 IKS School Wellness & Action Research")
+    st.caption("Indian Knowledge System practices for student wellbeing • School-based action research")
+    st.info(
+        "This tool supports reflection and educational action research. It does not diagnose "
+        "mental-health conditions or replace support from qualified professionals."
+    )
+
+
+def student_fields(prefix: str):
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        code = st.text_input("Student code (do not enter full name)", key=f"{prefix}_code",
+                             placeholder="e.g. XI-A-001")
+    with c2:
+        class_section = st.text_input("Class / section", key=f"{prefix}_class",
+                                      placeholder="e.g. XI-A")
+    with c3:
+        age_band = st.selectbox("Age group (optional)", ["Prefer not to say", "13–14", "15–16", "17–18", "Above 18"],
+                                key=f"{prefix}_age")
+    return code.strip(), class_section.strip(), age_band
+
+
+def render_pre_assessment():
+    st.header("1. Pre-intervention assessment")
+    st.write(
+        "Purpose: understand students’ current experiences and the kinds of support they may find useful. "
+        "There are no right or wrong answers."
+    )
+    st.caption("Use a student code rather than a name. Participation should be voluntary and handled according to school policy.")
+    with st.form("pre_assessment_form"):
+        code, class_section, age_band = student_fields("pre")
+        st.subheader("A. Areas where support may be useful")
+        selected_issues = st.multiselect(
+            "Which of these, if any, have been challenging for you recently? (Select all that apply.)",
+            ISSUES,
+        )
+        other_issue = st.text_input("If you selected ‘Other’, you may describe it briefly (optional).")
+        st.subheader("B. How often do these statements describe you?")
+        st.caption("1 = Never • 2 = Rarely • 3 = Sometimes • 4 = Often • 5 = Almost always")
+        answers = {}
+        for key, question in CORE_ITEMS.items():
+            answers[key] = st.select_slider(
+                question, options=FREQUENCY, value="Sometimes", key=f"pre_{key}"
+            )
+        coping = st.multiselect(
+            "What do you currently do when you feel stressed or worried? (Optional)",
+            ["Talk to a trusted person", "Take a break", "Play / exercise", "Listen to music",
+             "Pray / meditate", "Breathing exercises", "Write / draw", "Other", "I am not sure"],
+        )
+        support = st.radio(
+            "Would you like to learn simple practices for managing everyday stress?",
+            ["Yes", "Maybe", "Not at present"], horizontal=True,
+        )
+        consent = st.checkbox(
+            "I understand that this is a voluntary educational reflection activity and my responses "
+            "will be used for the stated school project."
+        )
+        submitted = st.form_submit_button("Save pre-assessment", type="primary", use_container_width=True)
+    if submitted:
+        if not code or not class_section:
+            st.error("Please enter a student code and class / section.")
+        elif not consent:
+            st.error("Please confirm the participation statement before saving.")
+        else:
+            record = {
+                "record_id": str(uuid.uuid4()),
+                "student_code": code,
+                "class_section": class_section,
+                "age_band": age_band,
+                "assessment_type": "pre",
+                "submitted_at": datetime.now().isoformat(timespec="seconds"),
+                "selected_issues": "; ".join(selected_issues),
+                "other_issue": other_issue.strip(),
+                "coping_methods": "; ".join(coping),
+                "interest_in_practices": support,
+            }
+            record.update({k: LIKERT[v] for k, v in answers.items()})
+            save_assessment(record)
+            st.success("Pre-assessment saved. Thank you for participating.")
+            st.caption("Keep the same student code for the post-assessment so that responses can be compared.")
+
+
+def render_intervention():
+    st.header("2. IKS intervention planner & practice log")
+    st.write(
+        "Use these practices as age-appropriate, inclusive wellbeing activities. Explain the activity, "
+        "allow students to opt out, and never force breath retention, strenuous postures or personal disclosure."
+    )
+    descriptions = {
+        PRACTICES[0]: "Gentle, comfortable movement with attention to posture and bodily awareness. Adapt for ability and safety.",
+        PRACTICES[1]: "Simple natural breathing awareness. Avoid forceful breathing or breath-holding; stop if uncomfortable.",
+        PRACTICES[2]: "A short, guided quiet-attention practice. Students may keep their eyes open or simply sit quietly.",
+        PRACTICES[3]: "Reflective reading, journaling or self-observation focused on learning and constructive thoughts.",
+        PRACTICES[4]: "Doing an everyday task with care, attention and a sense of responsibility.",
+        PRACTICES[5]: "A balanced and realistic daily routine that includes sleep, study, recreation and rest.",
+        PRACTICES[6]: "A voluntary act of kindness or contribution to the class or community, without pressure.",
+    }
+    for practice, description in descriptions.items():
+        with st.expander(practice):
+            st.write(description)
+    st.subheader("Record a completed session")
+    with st.form("practice_log_form"):
+        c1, c2 = st.columns(2)
+        with c1:
+            session_date = st.date_input("Date", value=date.today())
+            practice = st.selectbox("Practice", PRACTICES)
+            duration = st.number_input("Duration (minutes)", min_value=1, max_value=60, value=5)
+        with c2:
+            class_section = st.text_input("Class / section", placeholder="e.g. XI-A", key="log_class")
+            facilitator = st.text_input("Facilitator (optional)")
+            participation = st.selectbox("Participation", ["Whole class", "Small group", "Individual / self-practice"])
+        notes = st.text_area("Brief session reflection (avoid naming students or recording sensitive disclosures)", max_chars=500)
+        log_submit = st.form_submit_button("Save session log", type="primary")
+    if log_submit:
+        if not class_section.strip():
+            st.error("Please enter the class / section.")
+        else:
+            append_record(PRACTICE_FILE, {
+                "date": session_date.isoformat(), "class_section": class_section.strip(),
+                "practice": practice, "duration_minutes": duration,
+                "participation": participation, "facilitator": facilitator.strip(),
+                "reflection": notes.strip(),
+            })
+            st.success("Session log saved.")
+    logs = read_csv(PRACTICE_FILE)
+    if not logs.empty:
+        st.subheader("Recent sessions")
+        st.dataframe(logs.tail(10), use_container_width=True, hide_index=True)
+
+
+def render_post_assessment():
+    st.header("3. Post-intervention assessment")
+    st.write(
+        "Complete after the planned intervention period (suggested: 4–6 weeks). "
+        "Use the same student code entered in the pre-assessment."
+    )
+    with st.form("post_assessment_form"):
+        code, class_section, age_band = student_fields("post")
+        st.subheader("A. Current experience")
+        st.caption("Use the same scale as the pre-assessment: 1 = Never to 5 = Almost always.")
+        answers = {}
+        for key, question in CORE_ITEMS.items():
+            answers[key] = st.select_slider(
+                question, options=FREQUENCY, value="Sometimes", key=f"post_{key}"
+            )
+        st.subheader("B. IKS practices")
+        used = st.multiselect("Which practices did you try during the intervention?", PRACTICES)
+        helpfulness = {}
+        for index, practice in enumerate(PRACTICES):
+            helpfulness[practice] = st.select_slider(
+                f"How helpful was {practice.lower()} for you?",
+                options=["Not tried", "Not helpful", "A little", "Moderately", "Very helpful"],
+                value="Not tried", key=f"post_help_{index}"
+            )
+        most_useful = st.selectbox("Which practice was most useful to you?", ["Not sure"] + PRACTICES)
+        change = st.selectbox(
+            "Which area, if any, do you feel has improved the most?",
+            ["Not sure / no noticeable change"] + ISSUES
+        )
+        reflection = st.text_area("What did you learn about looking after your wellbeing? (Optional)", max_chars=500)
+        suggestion = st.text_area("What could be improved in these sessions? (Optional)", max_chars=500)
+        usefulness = st.slider("Overall, how useful were the IKS activities?", 1, 5, 3,
+                               help="1 = Not useful, 5 = Very useful")
+        consent = st.checkbox("I understand that this is a voluntary educational reflection activity.")
+        submitted = st.form_submit_button("Save post-assessment", type="primary", use_container_width=True)
+    if submitted:
+        if not code or not class_section:
+            st.error("Please enter the student code and class / section.")
+        elif not consent:
+            st.error("Please confirm the participation statement before saving.")
+        else:
+            record = {
+                "record_id": str(uuid.uuid4()), "student_code": code,
+                "class_section": class_section, "age_band": age_band,
+                "assessment_type": "post", "submitted_at": datetime.now().isoformat(timespec="seconds"),
+                "practices_tried": "; ".join(used),
+                "most_useful_practice": most_useful, "area_improved": change,
+                "reflection": reflection.strip(), "suggestion": suggestion.strip(),
+                "overall_usefulness": usefulness,
+            }
+            record.update({k: LIKERT[v] for k, v in answers.items()})
+            for index, practice in enumerate(PRACTICES):
+                record[f"helpfulness_{index}"] = helpfulness[practice]
+            save_assessment(record)
+            st.success("Post-assessment saved. Thank you for sharing your reflection.")
+
+
+def score_frame(frame: pd.DataFrame, assessment_type: str) -> pd.DataFrame:
+    subset = frame[frame["assessment_type"] == assessment_type].copy()
+    if subset.empty:
+        return subset
+    for key in CORE_ITEMS:
+        if key in subset:
+            subset[key] = pd.to_numeric(subset[key], errors="coerce")
+    # Latest submission per student and assessment type is used in paired analysis.
+    subset["submitted_at"] = pd.to_datetime(subset["submitted_at"], errors="coerce")
+    return subset.sort_values("submitted_at").drop_duplicates("student_code", keep="last")
+
+
+def render_analysis():
+    st.header("4. Analysis & export")
+    frame = read_csv(ASSESSMENTS_FILE)
+    if frame.empty or "assessment_type" not in frame.columns:
+        st.info("No assessment records yet. Complete pre- and post-assessments to see analysis.")
+        return
+    pre = score_frame(frame, "pre")
+    post = score_frame(frame, "post")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Pre-assessments", len(pre))
+    c2.metric("Post-assessments", len(post))
+    paired_codes = sorted(set(pre.get("student_code", [])) & set(post.get("student_code", [])))
+    c3.metric("Matched students", len(paired_codes))
+    st.caption("Analysis uses the latest pre and latest post submission for each student code. Use anonymous codes consistently.")
+    if paired_codes:
+        pre_pair = pre[pre["student_code"].isin(paired_codes)].set_index("student_code")
+        post_pair = post[post["student_code"].isin(paired_codes)].set_index("student_code")
+        rows = []
+        for key, question in CORE_ITEMS.items():
+            before = pd.to_numeric(pre_pair[key], errors="coerce").mean() if key in pre_pair else float("nan")
+            after = pd.to_numeric(post_pair[key], errors="coerce").mean() if key in post_pair else float("nan")
+            # A positive change is favourable for every displayed domain.
+            if key in REVERSE_ITEMS:
+                change_value = before - after
+            else:
+                change_value = after - before
+            rows.append({"Domain": question, "Pre mean": before, "Post mean": after,
+                         "Favourable-direction change": change_value})
+        comparison = pd.DataFrame(rows)
+        st.subheader("Matched pre/post comparison")
+        st.dataframe(comparison.round(2), use_container_width=True, hide_index=True)
+        st.caption(
+            "For stress and worry, a decrease is favourable; for calmness, concentration, routine, "
+            "confidence, sharing and positivity, an increase is favourable. These are descriptive "
+            "self-reports, not clinical measures or proof of causation."
+        )
+        plot_data = comparison.set_index("Domain")[["Pre mean", "Post mean"]]
+        fig, ax = plt.subplots(figsize=(10, 5))
+        plot_data.plot(kind="bar", ax=ax)
+        ax.set_ylim(0, 5)
+        ax.set_ylabel("Mean response (1–5)")
+        ax.set_title("Pre- and post-intervention self-reported responses")
+        ax.tick_params(axis="x", labelrotation=35)
+        fig.tight_layout()
+        st.pyplot(fig)
+        plt.close(fig)
+        csv = comparison.to_csv(index=False).encode("utf-8-sig")
+        st.download_button("Download comparison (CSV)", csv, "iks_pre_post_comparison.csv", "text/csv")
+    else:
+        st.warning("No matching student codes found in both pre- and post-assessments yet.")
+    with st.expander("View assessment records"):
+        st.dataframe(frame, use_container_width=True, hide_index=True)
+    st.download_button(
+        "Download all assessment records (CSV)",
+        frame.to_csv(index=False).encode("utf-8-sig"),
+        "iks_assessments.csv", "text/csv",
+    )
+    logs = read_csv(PRACTICE_FILE)
+    if not logs.empty:
+        st.subheader("Intervention implementation summary")
+        st.dataframe(logs, use_container_width=True, hide_index=True)
+        st.download_button("Download practice log (CSV)",
+                           logs.to_csv(index=False).encode("utf-8-sig"),
+                           "iks_practice_log.csv", "text/csv")
+
+
+def render_dashboard():
+    st.header("Project overview")
+    st.markdown(
+        """
+        This project explores how selected **Indian Knowledge System (IKS)** practices may support
+        students’ everyday wellbeing, self-awareness and coping skills in a school setting.
+
+        **Suggested action-research cycle**
+
+        1. **Pre-assessment:** identify students’ reported challenges and existing coping methods.
+        2. **Intervention (4–6 weeks):** offer short, inclusive sessions using Yoga, Pranayama,
+           Dhyana, Svadhyaya, Karma Yoga, Dinacharya and Seva.
+        3. **Post-assessment:** repeat the core questions and ask which practices students found useful.
+        4. **Reflection:** compare matched responses, review implementation notes and plan improvements.
+        """
+    )
+    frame = read_csv(ASSESSMENTS_FILE)
+    logs = read_csv(PRACTICE_FILE)
+    pre_count = int((frame.get("assessment_type", pd.Series(dtype=str)) == "pre").sum()) if not frame.empty else 0
+    post_count = int((frame.get("assessment_type", pd.Series(dtype=str)) == "post").sum()) if not frame.empty else 0
+    a, b, c = st.columns(3)
+    a.metric("Pre-assessments recorded", pre_count)
+    b.metric("Post-assessments recorded", post_count)
+    c.metric("IKS sessions logged", len(logs))
+    st.subheader("Project principles")
+    p1, p2, p3 = st.columns(3)
+    p1.markdown("**Voluntary participation**\n\nStudents may skip a question or activity.")
+    p2.markdown("**Respect & privacy**\n\nUse student codes; avoid collecting unnecessary personal details.")
+    p3.markdown("**Non-clinical use**\n\nDo not interpret scores as diagnosis or treatment outcomes.")
+    st.warning(
+        "If a student expresses serious distress or a safety concern, follow the school’s child-protection "
+        "and safeguarding procedures and refer to the designated qualified professional. Do not rely on this app."
+    )
+
+
+def main():
+    header()
+    page = st.sidebar.radio(
+        "Navigate",
+        ["Project overview", "Pre-assessment", "IKS intervention & session log",
+         "Post-assessment", "Analysis & export"],
+    )
+    st.sidebar.divider()
+    st.sidebar.caption("PM SHRI Kendriya Vidyalaya Dongargarh")
+    st.sidebar.caption("IKS School Wellness Action Research")
+    if page == "Project overview":
+        render_dashboard()
+    elif page == "Pre-assessment":
+        render_pre_assessment()
+    elif page == "IKS intervention & session log":
+        render_intervention()
+    elif page == "Post-assessment":
+        render_post_assessment()
+    else:
+        render_analysis()
+
+
+if __name__ == "__main__":
+    main()
