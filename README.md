@@ -60,3 +60,12 @@ Both files are excluded from Git by `.gitignore`.
 ## Analysis notes
 
 The analysis uses the latest pre and latest post record for each student code. For stress and worry, a lower post score is treated as a favourable direction; for the other core statements, a higher score is treated as favourable. These are descriptive self-reports and should not be presented as clinical measures or proof that the intervention caused a change.
+
+## Individualised IKS support planning
+
+The app includes an **Individual IKS support plan** page. A student selects one concern to focus on, indicates how often it occurs and how much it affects the school day, shares preferred activity types and chooses whether to include suggested practices. The app then presents a concern-led set of IKS options, a small suggested activity plan and a student-centred goal.
+
+The suggestion library currently covers academic pressure, concentration, worry, sleep/routine, confidence, expressing feelings, peer concerns, family responsibilities, anger/frustration and an open/prefer-not-to-say category. Suggestions are educational starting points—not diagnosis, treatment or a substitute for counselling. A teacher/counsellor should review each plan with the student, respect the student's choice, and adapt or stop an activity based on feedback. The app does not infer a disorder or automatically assign a practice.
+
+Use only pseudonymous student codes. The current CSV storage is not an access-controlled student-record system. Do not use the public deployment for confidential or identifiable student information; arrange institution-approved authentication and persistent secure storage before collecting real student records.
+
