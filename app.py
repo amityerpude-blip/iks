@@ -1,4 +1,70 @@
-"""
+""
+SUPPORT_FILE = DATA_DIR / "individual_support_plans.csv"
+
+# Concern-led suggestions are educational options, not clinical prescriptions.
+SUPPORT_GUIDE = {
+    "Academic pressure or examination stress": {
+        "focus": "Reduce study-related tension and make the next step manageable.",
+        "practices": ["Pranayama / mindful breathing", "Svadhyaya / reflective reading or journaling", "Karma Yoga / mindful, sincere action"],
+        "plan": "Begin with 2–3 minutes of comfortable natural breathing. Write one worry and one practical next step. Work on one small study task at a time.",
+        "goal": "I can identify one manageable next step when study pressure rises.",
+    },
+    "Difficulty concentrating": {
+        "focus": "Build a gentle routine for returning attention to one task.",
+        "practices": ["Meditation / Dhyana", "Pranayama / mindful breathing", "Karma Yoga / mindful, sincere action"],
+        "plan": "Try 2–3 minutes of quiet attention or natural breathing, followed by a short single-task study period and a brief break. Increase duration only if comfortable.",
+        "goal": "I can return my attention to the task after a distraction.",
+    },
+    "Worry or overthinking": {
+        "focus": "Notice recurring thoughts and practise a calm, supportive response.",
+        "practices": ["Meditation / Dhyana", "Svadhyaya / reflective reading or journaling", "Pranayama / mindful breathing"],
+        "plan": "Use a short guided quiet-attention activity. In a private journal, note what is within your control and one person you can talk to. Keep breathing natural; stop if uncomfortable.",
+        "goal": "I can name one helpful response and one trusted person I can approach.",
+    },
+    "Sleep or daily-routine difficulties": {
+        "focus": "Create a realistic and consistent daily rhythm.",
+        "practices": ["Dinacharya / balanced daily routine", "Svadhyaya / reflective reading or journaling", "Meditation / Dhyana"],
+        "plan": "Choose one realistic regular time for winding down. Make a simple evening routine with quiet reflection and reduced stimulating activity. Review it without self-blame.",
+        "goal": "I can follow one small, realistic part of a balanced daily routine.",
+    },
+    "Low confidence": {
+        "focus": "Recognise strengths and build confidence through small achievable actions.",
+        "practices": ["Svadhyaya / reflective reading or journaling", "Karma Yoga / mindful, sincere action", "Seva / helpfulness and service"],
+        "plan": "Record one effort or strength each day. Choose a small achievable task, complete it with care, and reflect on what helped. Service is optional and should never be forced.",
+        "goal": "I can identify a strength and one small action I completed.",
+    },
+    "Difficulty expressing feelings": {
+        "focus": "Find a safe, comfortable way to express a feeling and seek support.",
+        "practices": ["Svadhyaya / reflective reading or journaling", "Meditation / Dhyana", "Seva / helpfulness and service"],
+        "plan": "Use a private word, drawing or journal prompt to identify a feeling. Practise sharing only what feels comfortable with a trusted adult. Do not require public disclosure.",
+        "goal": "I can identify at least one safe way to communicate when I need support.",
+    },
+    "Peer or friendship concerns": {
+        "focus": "Support respectful interaction and help-seeking.",
+        "practices": ["Svadhyaya / reflective reading or journaling", "Seva / helpfulness and service", "Meditation / Dhyana"],
+        "plan": "Reflect privately on what happened, what is within your control and what support is needed. Optional cooperative service may help build positive connection. Speak to a trusted adult if the concern continues or involves bullying.",
+        "goal": "I can identify a respectful next step or a trusted adult to approach.",
+    },
+    "Family or personal responsibilities": {
+        "focus": "Make responsibilities manageable while protecting time for rest and support.",
+        "practices": ["Dinacharya / balanced daily routine", "Karma Yoga / mindful, sincere action", "Svadhyaya / reflective reading or journaling"],
+        "plan": "List tasks that are manageable, choose one priority and plan a realistic study/rest routine. Discuss workload with a trusted adult if responsibilities feel overwhelming.",
+        "goal": "I can plan one manageable task while making time for rest or help.",
+    },
+    "Managing anger or frustration": {
+        "focus": "Create a pause before responding and reflect on what may help.",
+        "practices": ["Pranayama / mindful breathing", "Meditation / Dhyana", "Svadhyaya / reflective reading or journaling"],
+        "plan": "When appropriate, pause and take a few comfortable natural breaths. Step away to a safe, calm space if possible, then reflect on the trigger and a respectful next response. Never use forced breathing or breath retention.",
+        "goal": "I can practise one safe pause before responding when frustrated.",
+    },
+    "Other / prefer not to say": {
+        "focus": "Choose a supportive activity based on the student's comfort and preference.",
+        "practices": ["Meditation / Dhyana", "Svadhyaya / reflective reading or journaling", "Dinacharya / balanced daily routine"],
+        "plan": "Discuss the concern privately with a trusted teacher or counsellor, if the student wishes. Select one low-pressure activity together and review whether it feels useful.",
+        "goal": "I can identify one form of support that feels comfortable and appropriate.",
+    },
+}
+"
 IKS School Wellness & Action Research Tool
 A school-based reflection and evaluation tool. It is not a diagnostic or treatment tool.
 Run: streamlit run app.py
@@ -173,6 +239,92 @@ def render_pre_assessment():
             st.success("Pre-assessment saved. Thank you for participating.")
             st.caption("Keep the same student code for the post-assessment so that responses can be compared.")
 
+
+
+def render_individual_plan():
+    st.header("2. Individualised IKS support plan")
+    st.write(
+        "Create a student-led plan from the concern the student identifies. The suggestions below are "
+        "starting points for discussion—not diagnoses or automatic prescriptions. A teacher/counsellor "
+        "should review suitability with the student."
+    )
+    st.info("Use a pseudonymous student code. Do not enter names, diagnoses, trauma details or other sensitive disclosures.")
+    with st.form("individual_plan_form"):
+        code, class_section, age_band = student_fields("plan")
+        concern = st.selectbox("Which concern would you like support with first?", ISSUES)
+        frequency = st.selectbox(
+            "How often has this concern been present recently?",
+            ["Occasionally", "Some days", "Most days", "Prefer not to say"],
+        )
+        impact = st.selectbox(
+            "How much does it affect your school day or daily routine?",
+            ["A little", "Somewhat", "A lot", "Prefer not to say"],
+        )
+        preference = st.radio(
+            "What kind of activity would you feel most comfortable trying?",
+            ["Quiet reflection", "Gentle movement", "Breathing awareness", "Daily routine / planning", "Helping activity", "Not sure yet"],
+            horizontal=False,
+        )
+        available_time = st.select_slider("Time you would prefer for one activity", options=["2–3 minutes", "5 minutes", "10 minutes", "Not sure"], value="5 minutes")
+        student_choice = st.multiselect(
+            "Would you like to include any of these practices? (Optional)",
+            PRACTICES,
+        )
+        safety = st.checkbox(
+            "I understand I can skip any activity, stop if uncomfortable, and speak privately with a trusted adult."
+        )
+        submitted = st.form_submit_button("Create my suggested support plan", type="primary", use_container_width=True)
+    if submitted:
+        if not code or not class_section:
+            st.error("Please enter a student code and class / section.")
+            return
+        if not safety:
+            st.error("Please confirm the choice-and-safety statement.")
+            return
+        guide = SUPPORT_GUIDE[concern]
+        preferred = student_choice if student_choice else guide["practices"]
+        plan = {
+            "plan_id": str(uuid.uuid4()),
+            "created_at": datetime.now().isoformat(timespec="seconds"),
+            "student_code": code,
+            "class_section": class_section,
+            "age_band": age_band,
+            "focus_concern": concern,
+            "frequency": frequency,
+            "impact": impact,
+            "preferred_activity": preference,
+            "available_time": available_time,
+            "recommended_practices": "; ".join(guide["practices"]),
+            "student_selected_practices": "; ".join(preferred),
+            "suggested_plan": guide["plan"],
+            "student_goal": guide["goal"],
+            "review_status": "Pending teacher/counsellor review",
+        }
+        append_record(SUPPORT_FILE, plan)
+        st.success("A suggested plan has been created. Please review it with a trusted teacher/counsellor before starting.")
+        st.subheader("Your suggested support plan")
+        st.markdown(f"**Focus:** {guide['focus']}")
+        st.markdown(f"**Suggested practices:** {', '.join(guide['practices'])}")
+        st.write(guide["plan"])
+        st.markdown(f"**A small goal to review:** {guide['goal']}")
+        st.markdown(f"**Student's preferred options:** {', '.join(preferred)}")
+        st.caption(f"Suggested activity time: {available_time}. Start gently and adjust together.")
+        st.warning(
+            "This plan is not medical or psychological treatment. If the student feels unsafe, "
+            "is in serious distress, or needs urgent help, stop this activity and follow school "
+            "safeguarding procedures immediately with the designated qualified professional."
+        )
+        st.caption("The plan is saved for project monitoring. Do not use this shared/public app for identifiable or confidential student records.")
+
+    st.divider()
+    st.subheader("How the plan should be reviewed")
+    st.markdown(
+        "1. Ask the student whether the suggested activity feels acceptable.\n"
+        "2. Agree on one small practice and a realistic frequency.\n"
+        "3. Check in after 1–2 weeks: helpful, not helpful, uncomfortable, or needs changing.\n"
+        "4. Keep, adapt or stop the activity based on the student's feedback.\n"
+        "5. Refer concerns beyond the scope of school wellbeing activities through the school's support system."
+    )
 
 def render_intervention():
     st.header("2. IKS intervention planner & practice log")
