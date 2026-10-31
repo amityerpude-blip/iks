@@ -342,7 +342,8 @@ def render_individual_plan():
             if linked.empty:
                 st.info("No session has been linked to this plan yet. Use the session-log link below to record the first activity.")
             else:
-                st.dataframe(linked[["date", "practice", "duration_minutes", "student_feedback", "reflection"]].tail(20), use_container_width=True, hide_index=True)
+                display_columns = [column for column in ["date", "practice", "duration_minutes", "student_feedback", "reflection"] if column in linked.columns]
+                st.dataframe(linked[display_columns].tail(20), use_container_width=True, hide_index=True)
             review_status = st.selectbox(
                 "Plan review status",
                 ["Pending teacher/counsellor review", "In progress", "Continue", "Adapt the plan", "Pause / stop", "Review completed"],
@@ -418,8 +419,8 @@ def render_intervention():
         notes = st.text_area("Brief session reflection (avoid naming students or recording sensitive disclosures)", max_chars=500)
         log_submit = st.form_submit_button("Save session log", type="primary")
     if log_submit:
-        if not class_section.strip():
-            st.error("Please enter the class / section.")
+        if linked_plan is None and not class_section.strip():
+            st.error("Please enter the class / section for a general session.")
         else:
             linked_student_code = str(linked_plan.get("student_code", "")) if linked_plan is not None else ""
             linked_class = str(linked_plan.get("class_section", "")) if linked_plan is not None else class_section.strip()
