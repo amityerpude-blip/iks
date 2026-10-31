@@ -155,6 +155,17 @@ def save_assessment(record: dict) -> None:
     append_record(ASSESSMENTS_FILE, record)
 
 
+def next_step_button(label: str, target_page: str, key: str) -> None:
+    """Render a button that navigates to the next workflow page."""
+    st.button(
+        label,
+        key=key,
+        type="primary",
+        use_container_width=True,
+        on_click=lambda: st.session_state.update({"page_nav": target_page}),
+    )
+
+
 def header():
     st.title("🪷 IKS School Wellness & Action Research")
     st.caption("Indian Knowledge System practices for student wellbeing • School-based action research")
@@ -234,8 +245,9 @@ def render_pre_assessment():
             }
             record.update({k: LIKERT[v] for k, v in answers.items()})
             save_assessment(record)
-            st.success("Pre-assessment saved. Thank you for participating.")
-            st.caption("Keep the same student code for the post-assessment so that responses can be compared.")
+            st.success("Pre-assessment submitted successfully.")
+            st.caption("Your responses are saved. Keep the same student code for the individual support plan and post-assessment.")
+            next_step_button("Next: Create Individual IKS Support Plan", "Individual IKS support plan", "pre_to_plan")
 
 
 
@@ -313,6 +325,7 @@ def render_individual_plan():
             "safeguarding procedures immediately with the designated qualified professional."
         )
         st.caption("The plan is saved for project monitoring. Do not use this shared/public app for identifiable or confidential student records.")
+        next_step_button("Next: Record IKS Intervention Session", "IKS intervention & session log", "plan_to_session")
 
     st.divider()
     st.subheader("Saved plans and linked intervention progress")
@@ -438,7 +451,8 @@ def render_intervention():
                 "student_feedback": student_feedback,
                 "reflection": notes.strip(),
             })
-            st.success("Session log saved.")
+            st.success("Session log submitted successfully and linked to the selected support plan.")
+            next_step_button("Next: Review Individual Support Plan", "Individual IKS support plan", "session_to_plan")
     logs = read_csv(PRACTICE_FILE)
     if not logs.empty:
         st.subheader("Recent sessions")
@@ -507,7 +521,8 @@ def render_post_assessment():
             for index, practice in enumerate(PRACTICES):
                 record[f"helpfulness_{index}"] = helpfulness[practice]
             save_assessment(record)
-            st.success("Post-assessment saved. Thank you for sharing your reflection.")
+            st.success("Post-assessment submitted successfully. Thank you for sharing your reflection.")
+            next_step_button("Next: View Analysis & Export", "Analysis & export", "post_to_analysis")
 
 
 def score_frame(frame: pd.DataFrame, assessment_type: str) -> pd.DataFrame:
@@ -604,6 +619,16 @@ def render_dashboard():
         5. **Reflection:** compare matched responses, review implementation notes and plan improvements.
         """
     )
+    st.subheader("Start or continue the action-research cycle")
+    start_cols = st.columns(3)
+    with start_cols[0]:
+        next_step_button("Take Pre-assessment", "Pre-assessment", "dashboard_pre")
+    with start_cols[1]:
+        next_step_button("Create Support Plan", "Individual IKS support plan", "dashboard_plan")
+    with start_cols[2]:
+        next_step_button("Open Session Log", "IKS intervention & session log", "dashboard_session")
+    st.caption("Complete the post-assessment after the planned intervention period (suggested: 4–6 weeks).")
+    next_step_button("Take Post-assessment", "Post-assessment", "dashboard_post")
     frame = read_csv(ASSESSMENTS_FILE)
     logs = read_csv(PRACTICE_FILE)
     pre_count = int((frame.get("assessment_type", pd.Series(dtype=str)) == "pre").sum()) if not frame.empty else 0
