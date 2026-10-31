@@ -519,10 +519,10 @@ def render_dashboard():
         **Suggested action-research cycle**
 
         1. **Pre-assessment:** identify students’ reported challenges and existing coping methods.
-        2. **Intervention (4–6 weeks):** offer short, inclusive sessions using Yoga, Pranayama,
-           Dhyana, Svadhyaya, Karma Yoga, Dinacharya and Seva.
-        3. **Post-assessment:** repeat the core questions and ask which practices students found useful.
-        4. **Reflection:** compare matched responses, review implementation notes and plan improvements.
+        2. **Individualised support:** use the student’s selected concern, comfort and preferences to co-create a small IKS-based plan.
+        3. **Intervention (4–6 weeks):** offer short, inclusive activities selected for the student rather than giving everyone the same practice.
+        4. **Post-assessment:** repeat the core questions and ask which practices students found useful.
+        5. **Reflection:** compare matched responses, review implementation notes and plan improvements.
         """
     )
     frame = read_csv(ASSESSMENTS_FILE)
@@ -548,8 +548,8 @@ def main():
     header()
     page = st.sidebar.radio(
         "Navigate",
-        ["Project overview", "Pre-assessment", "IKS intervention & session log",
-         "Post-assessment", "Analysis & export"],
+        ["Project overview", "Pre-assessment", "Individual IKS support plan",
+         "IKS intervention & session log", "Post-assessment", "Analysis & export"],
     )
     st.sidebar.divider()
     st.sidebar.caption("PM SHRI Kendriya Vidyalaya Dongargarh")
@@ -558,6 +558,8 @@ def main():
         render_dashboard()
     elif page == "Pre-assessment":
         render_pre_assessment()
+    elif page == "Individual IKS support plan":
+        render_individual_plan()
     elif page == "IKS intervention & session log":
         render_intervention()
     elif page == "Post-assessment":
