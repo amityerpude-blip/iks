@@ -1,5 +1,76 @@
-""
+"""IKS School Wellness & Action Research Tool
+A school-based reflection and evaluation tool. It is not a diagnostic or treatment tool.
+Run: streamlit run app.py
+"""
+from __future__ import annotations
+
+import io
+import json
+import uuid
+from datetime import date, datetime
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import streamlit as st
+
+APP_DIR = Path(__file__).resolve().parent
+DATA_DIR = APP_DIR / "data"
+DATA_DIR.mkdir(exist_ok=True)
+ASSESSMENTS_FILE = DATA_DIR / "assessments.csv"
+PRACTICE_FILE = DATA_DIR / "practice_log.csv"
 SUPPORT_FILE = DATA_DIR / "individual_support_plans.csv"
+
+st.set_page_config(
+    page_title="IKS School Wellness Project",
+    page_icon="🪷",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ----------------------------- Project content -----------------------------
+LIKERT = {
+    "Never": 1,
+    "Rarely": 2,
+    "Sometimes": 3,
+    "Often": 4,
+    "Almost always": 5,
+}
+FREQUENCY = list(LIKERT.keys())
+CORE_ITEMS = {
+    "stress": "I feel stressed by studies, schoolwork or expectations.",
+    "calm": "I am able to remain calm when I face a difficult situation.",
+    "concentration": "I can concentrate on my studies or the task in front of me.",
+    "worry": "I worry so much that it affects my daily activities.",
+    "sleep": "I follow a regular sleep and daily routine.",
+    "confidence": "I feel confident about handling everyday challenges.",
+    "sharing": "I can talk to a trusted person when something is troubling me.",
+    "positivity": "I can notice positive things in my day.",
+}
+# Higher scores are not uniformly better. Reverse-score stress and worry for
+# the overall positive-wellbeing index; display individual items transparently.
+REVERSE_ITEMS = {"stress", "worry"}
+PRACTICES = [
+    "Yoga / gentle stretching (as appropriate)",
+    "Pranayama / mindful breathing",
+    "Meditation / Dhyana",
+    "Svadhyaya / reflective reading or journaling",
+    "Karma Yoga / mindful, sincere action",
+    "Dinacharya / balanced daily routine",
+    "Seva / helpfulness and service",
+]
+ISSUES = [
+    "Academic pressure or examination stress",
+    "Difficulty concentrating",
+    "Worry or overthinking",
+    "Sleep or daily-routine difficulties",
+    "Low confidence",
+    "Difficulty expressing feelings",
+    "Peer or friendship concerns",
+    "Family or personal responsibilities",
+    "Managing anger or frustration",
+    "Other / prefer not to say",
+]
 
 # Concern-led suggestions are educational options, not clinical prescriptions.
 SUPPORT_GUIDE = {
@@ -64,79 +135,6 @@ SUPPORT_GUIDE = {
         "goal": "I can identify one form of support that feels comfortable and appropriate.",
     },
 }
-"
-IKS School Wellness & Action Research Tool
-A school-based reflection and evaluation tool. It is not a diagnostic or treatment tool.
-Run: streamlit run app.py
-"""
-from __future__ import annotations
-
-import io
-import json
-import uuid
-from datetime import date, datetime
-from pathlib import Path
-
-import matplotlib.pyplot as plt
-import pandas as pd
-import streamlit as st
-
-APP_DIR = Path(__file__).resolve().parent
-DATA_DIR = APP_DIR / "data"
-DATA_DIR.mkdir(exist_ok=True)
-ASSESSMENTS_FILE = DATA_DIR / "assessments.csv"
-PRACTICE_FILE = DATA_DIR / "practice_log.csv"
-
-st.set_page_config(
-    page_title="IKS School Wellness Project",
-    page_icon="🪷",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-
-# ----------------------------- Project content -----------------------------
-LIKERT = {
-    "Never": 1,
-    "Rarely": 2,
-    "Sometimes": 3,
-    "Often": 4,
-    "Almost always": 5,
-}
-FREQUENCY = list(LIKERT.keys())
-CORE_ITEMS = {
-    "stress": "I feel stressed by studies, schoolwork or expectations.",
-    "calm": "I am able to remain calm when I face a difficult situation.",
-    "concentration": "I can concentrate on my studies or the task in front of me.",
-    "worry": "I worry so much that it affects my daily activities.",
-    "sleep": "I follow a regular sleep and daily routine.",
-    "confidence": "I feel confident about handling everyday challenges.",
-    "sharing": "I can talk to a trusted person when something is troubling me.",
-    "positivity": "I can notice positive things in my day.",
-}
-# Higher scores are not uniformly better. Reverse-score stress and worry for
-# the overall positive-wellbeing index; display individual items transparently.
-REVERSE_ITEMS = {"stress", "worry"}
-PRACTICES = [
-    "Yoga / gentle stretching (as appropriate)",
-    "Pranayama / mindful breathing",
-    "Meditation / Dhyana",
-    "Svadhyaya / reflective reading or journaling",
-    "Karma Yoga / mindful, sincere action",
-    "Dinacharya / balanced daily routine",
-    "Seva / helpfulness and service",
-]
-ISSUES = [
-    "Academic pressure or examination stress",
-    "Difficulty concentrating",
-    "Worry or overthinking",
-    "Sleep or daily-routine difficulties",
-    "Low confidence",
-    "Difficulty expressing feelings",
-    "Peer or friendship concerns",
-    "Family or personal responsibilities",
-    "Managing anger or frustration",
-    "Other / prefer not to say",
-]
 
 def read_csv(path: Path) -> pd.DataFrame:
     if path.exists() and path.stat().st_size:
