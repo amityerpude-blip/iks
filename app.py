@@ -315,6 +315,49 @@ def render_individual_plan():
         st.caption("The plan is saved for project monitoring. Do not use this shared/public app for identifiable or confidential student records.")
 
     st.divider()
+    st.subheader("Saved plans and linked intervention progress")
+    saved_plans = read_csv(SUPPORT_FILE)
+    saved_logs = read_csv(PRACTICE_FILE)
+    if saved_plans.empty:
+        st.info("No individual support plans have been saved yet.")
+    else:
+        plan_labels = {
+            f"{row.get('student_code', '')} | {row.get('focus_concern', '')} | {row.get('created_at', '')}": str(row.get("plan_id", ""))
+            for _, row in saved_plans.iterrows()
+        }
+        selected_label = st.selectbox("Select a saved plan to review", list(plan_labels.keys()), key="review_plan_select")
+        selected_id = plan_labels[selected_label]
+        selected_rows = saved_plans[saved_plans["plan_id"].astype(str) == selected_id]
+        if not selected_rows.empty:
+            selected_plan = selected_rows.iloc[-1]
+            st.markdown(f"**Student code:** {selected_plan.get('student_code', '')}  \n**Concern:** {selected_plan.get('focus_concern', '')}")
+            st.markdown(f"**Suggested goal:** {selected_plan.get('student_goal', '')}")
+            if not saved_logs.empty and "plan_id" in saved_logs.columns:
+                linked = saved_logs[saved_logs["plan_id"].fillna("").astype(str) == selected_id]
+            else:
+                linked = pd.DataFrame()
+            a, b = st.columns(2)
+            a.metric("Linked sessions completed", len(linked))
+            b.metric("Total practice minutes", int(pd.to_numeric(linked.get("duration_minutes", pd.Series(dtype=float)), errors="coerce").fillna(0).sum()))
+            if linked.empty:
+                st.info("No session has been linked to this plan yet. Use the session-log link below to record the first activity.")
+            else:
+                st.dataframe(linked[["date", "practice", "duration_minutes", "student_feedback", "reflection"]].tail(20), use_container_width=True, hide_index=True)
+            review_status = st.selectbox(
+                "Plan review status",
+                ["Pending teacher/counsellor review", "In progress", "Continue", "Adapt the plan", "Pause / stop", "Review completed"],
+                index=["Pending teacher/counsellor review", "In progress", "Continue", "Adapt the plan", "Pause / stop", "Review completed"].index(str(selected_plan.get("review_status", "Pending teacher/counsellor review"))) if str(selected_plan.get("review_status", "Pending teacher/counsellor review")) in ["Pending teacher/counsellor review", "In progress", "Continue", "Adapt the plan", "Pause / stop", "Review completed"] else 0,
+                key=f"review_status_{selected_id}",
+            )
+            if st.button("Update plan review status", key=f"save_review_{selected_id}"):
+                saved_plans.loc[saved_plans["plan_id"].astype(str) == selected_id, "review_status"] = review_status
+                saved_plans.to_csv(SUPPORT_FILE, index=False, encoding="utf-8-sig")
+                st.success("Plan review status updated.")
+    if st.button("Open IKS intervention & session log", type="primary", use_container_width=True):
+        st.session_state["page_nav"] = "IKS intervention & session log"
+        st.rerun()
+
+    st.divider()
     st.subheader("How the plan should be reviewed")
     st.markdown(
         "1. Ask the student whether the suggested activity feels acceptable.\n"
@@ -343,26 +386,52 @@ def render_intervention():
         with st.expander(practice):
             st.write(description)
     st.subheader("Record a completed session")
+    support_plans = read_csv(SUPPORT_FILE)
+    plan_options = {"General session (not linked to an individual plan)": ""}
+    plan_lookup = {}
+    if not support_plans.empty and "plan_id" in support_plans.columns:
+        for _, plan_row in support_plans.iterrows():
+            plan_id_value = str(plan_row.get("plan_id", ""))
+            plan_label = f"{plan_row.get('student_code', '')} | {plan_row.get('focus_concern', '')} | {plan_row.get('created_at', '')}"
+            plan_options[plan_label] = plan_id_value
+            plan_lookup[plan_id_value] = plan_row
     with st.form("practice_log_form"):
+        selected_plan_label = st.selectbox("Link this session to an individual support plan (optional)", list(plan_options.keys()))
+        selected_plan_id = plan_options[selected_plan_label]
+        linked_plan = plan_lookup.get(selected_plan_id)
+        if linked_plan is not None:
+            st.caption(f"Linked student: {linked_plan.get('student_code', '')} • Concern: {linked_plan.get('focus_concern', '')}")
         c1, c2 = st.columns(2)
         with c1:
             session_date = st.date_input("Date", value=date.today())
-            practice = st.selectbox("Practice", PRACTICES)
+            suggested_for_plan = []
+            if linked_plan is not None:
+                suggested_for_plan = [p.strip() for p in str(linked_plan.get("student_selected_practices", "")).split(";") if p.strip()]
+            practice_choices = list(dict.fromkeys(suggested_for_plan + PRACTICES))
+            practice = st.selectbox("Practice", practice_choices, index=0)
             duration = st.number_input("Duration (minutes)", min_value=1, max_value=60, value=5)
         with c2:
             class_section = st.text_input("Class / section", placeholder="e.g. XI-A", key="log_class")
             facilitator = st.text_input("Facilitator (optional)")
             participation = st.selectbox("Participation", ["Whole class", "Small group", "Individual / self-practice"])
+        student_feedback = st.selectbox("Student's response to the activity", ["Not discussed", "Helpful", "A little helpful", "Not helpful", "Uncomfortable", "Would like to try something different"])
         notes = st.text_area("Brief session reflection (avoid naming students or recording sensitive disclosures)", max_chars=500)
         log_submit = st.form_submit_button("Save session log", type="primary")
     if log_submit:
         if not class_section.strip():
             st.error("Please enter the class / section.")
         else:
+            linked_student_code = str(linked_plan.get("student_code", "")) if linked_plan is not None else ""
+            linked_class = str(linked_plan.get("class_section", "")) if linked_plan is not None else class_section.strip()
             append_record(PRACTICE_FILE, {
-                "date": session_date.isoformat(), "class_section": class_section.strip(),
+                "session_id": str(uuid.uuid4()),
+                "plan_id": selected_plan_id,
+                "student_code": linked_student_code,
+                "focus_concern": str(linked_plan.get("focus_concern", "")) if linked_plan is not None else "",
+                "date": session_date.isoformat(), "class_section": linked_class,
                 "practice": practice, "duration_minutes": duration,
                 "participation": participation, "facilitator": facilitator.strip(),
+                "student_feedback": student_feedback,
                 "reflection": notes.strip(),
             })
             st.success("Session log saved.")
@@ -370,6 +439,12 @@ def render_intervention():
     if not logs.empty:
         st.subheader("Recent sessions")
         st.dataframe(logs.tail(10), use_container_width=True, hide_index=True)
+        if "plan_id" in logs.columns:
+            linked_logs = logs[logs["plan_id"].fillna("").astype(str).str.strip() != ""]
+            st.caption(f"{len(linked_logs)} session(s) are linked to individual support plans.")
+    if st.button("Open Individual IKS support plan", use_container_width=True):
+        st.session_state["page_nav"] = "Individual IKS support plan"
+        st.rerun()
 
 
 def render_post_assessment():
@@ -548,6 +623,7 @@ def main():
         "Navigate",
         ["Project overview", "Pre-assessment", "Individual IKS support plan",
          "IKS intervention & session log", "Post-assessment", "Analysis & export"],
+        key="page_nav",
     )
     st.sidebar.divider()
     st.sidebar.caption("PM SHRI Kendriya Vidyalaya Dongargarh")
