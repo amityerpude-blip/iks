@@ -166,7 +166,100 @@ def next_step_button(label: str, target_page: str, key: str) -> None:
     )
 
 
+def apply_custom_theme():
+    """Apply a calm, welcoming visual theme inspired by nature and Indian wellness."""
+    st.markdown(
+        """
+        <style>
+        /* Soft sunrise background with subtle botanical colour accents */
+        [data-testid="stAppViewContainer"] {
+            background:
+                radial-gradient(ellipse at 8% 4%, rgba(255, 205, 145, 0.28), transparent 34%),
+                radial-gradient(ellipse at 92% 12%, rgba(125, 190, 174, 0.24), transparent 32%),
+                radial-gradient(ellipse at 72% 92%, rgba(190, 165, 220, 0.18), transparent 36%),
+                linear-gradient(135deg, #f7f8f2 0%, #eef5f1 48%, #f5f0f8 100%);
+            background-attachment: fixed;
+        }
+        [data-testid="stHeader"] { background: rgba(247, 248, 242, 0.72); }
+        .main .block-container {
+            max-width: 1240px;
+            padding-top: 2rem;
+            padding-bottom: 3rem;
+        }
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #e5f0e9 0%, #e9edf5 58%, #f2eaf4 100%);
+            border-right: 1px solid rgba(72, 112, 99, 0.14);
+        }
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+            color: #34564d;
+        }
+        h1 {
+            color: #244c43 !important;
+            letter-spacing: -0.035em;
+            font-weight: 800 !important;
+        }
+        h2, h3 { color: #315d51 !important; }
+        p, label, [data-testid="stCaptionContainer"] {
+            color: #425b55;
+        }
+        [data-testid="stMetric"] {
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(91, 135, 119, 0.18);
+            border-radius: 16px;
+            padding: 16px 18px;
+            box-shadow: 0 5px 18px rgba(49, 82, 70, 0.06);
+        }
+        [data-testid="stForm"], [data-testid="stExpander"] {
+            background: rgba(255, 255, 255, 0.62);
+            border: 1px solid rgba(91, 135, 119, 0.18);
+            border-radius: 16px;
+        }
+        [data-testid="stTextInput"] input,
+        [data-testid="stTextArea"] textarea,
+        [data-testid="stNumberInput"] input,
+        [data-testid="stSelectbox"] > div,
+        [data-testid="stMultiSelect"] > div {
+            background-color: rgba(255, 255, 255, 0.88);
+            border-radius: 10px;
+        }
+        .stButton > button, [data-testid="stFormSubmitButton"] > button {
+            border-radius: 12px;
+            border: 1px solid rgba(49, 93, 81, 0.18);
+            font-weight: 650;
+            transition: transform 150ms ease, box-shadow 150ms ease;
+        }
+        .stButton > button[kind="primary"],
+        [data-testid="stFormSubmitButton"] > button[kind="primary"] {
+            background: linear-gradient(105deg, #286b5b 0%, #438875 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 5px 14px rgba(40, 107, 91, 0.18);
+        }
+        .stButton > button:hover, [data-testid="stFormSubmitButton"] > button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 7px 18px rgba(49, 93, 81, 0.14);
+            border-color: #438875;
+        }
+        [data-testid="stAlert"] {
+            border-radius: 14px;
+            border: 1px solid rgba(91, 135, 119, 0.16);
+        }
+        hr { border-color: rgba(75, 115, 101, 0.18); }
+        @media (max-width: 768px) {
+            .main .block-container { padding-top: 1rem; }
+            h1 { font-size: 1.8rem !important; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            * { transition: none !important; }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def header():
+    apply_custom_theme()
     st.title("🪷 IKS School Wellness & Action Research")
     st.caption("Indian Knowledge System practices for student wellbeing • School-based action research")
     st.info(
